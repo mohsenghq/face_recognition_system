@@ -1,0 +1,74 @@
+version: '3.9'
+services:
+  capture:
+    build: ./modules/capture
+    container_name: capture
+    restart: always
+    env_file: .env
+    ports:
+      - "8001:8000"
+    networks:
+      - face_net
+
+  motion_detection:
+    build: ./modules/motion_detection
+    container_name: motion_detection
+    restart: always
+    networks:
+      - face_net
+
+  detector:
+    build: ./modules/detector
+    container_name: detector
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    networks:
+      - face_net
+
+  embedding:
+    build: ./modules/embedding
+    container_name: embedding
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    networks:
+      - face_net
+
+  matching:
+    build: ./modules/matching
+    container_name: matching
+    networks:
+      - face_net
+
+  tracker:
+    build: ./modules/tracker
+    container_name: tracker
+    networks:
+      - face_net
+
+  vector_db:
+    image: milvusdb/milvus:v2.4.0
+    container_name: vector_db
+    environment:
+      - MILVUS_LOG_LEVEL=info
+    ports:
+      - "19530:19530"
+    networks:
+      - face_net
+
+  monitoring:
+    build: ./modules/monitoring
+    container_name: monitoring
+    networks:
+      - face_net
+
+networks:
+  face_net:
+    driver: bridge
