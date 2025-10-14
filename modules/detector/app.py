@@ -1,4 +1,3 @@
-# app.py 
 import cv2
 import torch
 import numpy as np
@@ -7,107 +6,82 @@ from models.retinaface import RetinaFace
 from utils.box_utils import decode, decode_landm
 from utils.nms.py_cpu_nms import py_cpu_nms
 
+# --- GPU/CPU ---
 device = "cuda" if torch.cuda.is_available() else "cpu"
-torch.backends.cudnn.benchmark = True  
+torch.backends.cudnn.benchmark = True
 
-# ---------- settings----------
-conf_threshold = 0.6
-nms_threshold = 0.4
-vis_thres = 0.6
-resize = 1
+# --- parameters---
+CONF_THRESHOLD = 0.6
+NMS_THRESHOLD = 0.4
+RESIZE = 1  
 
-# ---------- loading model----------
-cfg_mnet = {
+# ---Retinaface
+CFG_MNET = {
     'name': 'mobilenet0.25',
     'min_sizes': [[16, 32], [64, 128], [256, 512]],
     'steps': [8, 16, 32],
     'variance': [0.1, 0.2],
     'clip': False,
-    'loc_weight': 2.0,
-    'gpu_train': True,
-    'batch_size': 32,
-    'ngpu': 1,
-    'epoch': 250,
-    'decay1': 190,
-    'decay2': 220,
-    'image_size': 640,
-    'pretrain': False,
-    'return_layers': {'stage1': 1, 'stage2': 2, 'stage3': 3},
     'in_channel': 32,
     'out_channel': 64
 }
 
-net = RetinaFace(cfg=cfg_mnet, phase='test')
-net = net.to(device)
-state_dict = torch.load("weights/mobilenet0.25_Final.pth", map_location=device)
-net.load_state_dict(state_dict, strict=False)
-net.eval()
-print("✅ RetinaFace MobileNet model loaded.")
+# ---loading model---
+def load_retinaface(weight_path: str, cfg=CFG_MNET):
+    net = RetinaFace(cfg=cfg, phase='test')
+    state_dict = torch.load(weight_path, map_location=device)
+    net.load_state_dict(state_dict, strict=False)
+    net.to(device).eval()
+    return net
 
-# ---------- function ----------
-def detect_faces(frame):
+
+
+def detect_faces(net, frame, conf_threshold=CONF_THRESHOLD, nms_threshold=NMS_THRESHOLD):
+    """
+    input:
+        net: loading RetinaFace
+        frame: image BGR (numpy array)
+    output:
+        dets: numpy array shape (N,5) with [x1,y1,x2,y2,score]
+        landms: numpy array shape (N,10) landmarks (x1,y1,...,x5,y5)
+    """
     img = np.float32(frame)
     im_height, im_width, _ = img.shape
     scale = torch.Tensor([im_width, im_height, im_width, im_height])
 
+    # mean subtraction (BGR)
     img -= (104, 117, 123)
     img = img.transpose(2, 0, 1)
     img = torch.from_numpy(img).unsqueeze(0).to(device)
 
-    with torch.cuda.amp.autocast(), torch.no_grad():
-        loc, conf, landms = net(img)  # forward pass
+    with torch.no_grad():
+        loc, conf, landms = net(img)
 
-    priorbox = PriorBox(cfg_mnet, image_size=(im_height, im_width))
+    priorbox = PriorBox(CFG_MNET, image_size=(im_height, im_width))
     priors = priorbox.forward().to(device)
-    boxes = decode(loc.data.squeeze(0), priors, cfg_mnet['variance'])
-    boxes = boxes * scale / resize
+
+    boxes = decode(loc.data.squeeze(0), priors, CFG_MNET['variance'])
+    boxes = boxes * scale / RESIZE
     boxes = boxes.cpu().numpy()
+
     scores = conf.data.squeeze(0)[:, 1].cpu().numpy()
-    landms = decode_landm(landms.data.squeeze(0), priors, cfg_mnet['variance'])
+    landms = decode_landm(landms.data.squeeze(0), priors, CFG_MNET['variance'])
     scale1 = torch.Tensor([im_width, im_height, im_width, im_height,
                            im_width, im_height, im_width, im_height,
                            im_width, im_height])
-    landms = landms * scale1 / resize
+    landms = landms * scale1 / RESIZE
     landms = landms.cpu().numpy()
 
-    # filtering
+    # filter
     inds = np.where(scores > conf_threshold)[0]
+    if inds.size == 0:
+        return np.empty((0,5)), np.empty((0,10))
     boxes, landms, scores = boxes[inds], landms[inds], scores[inds]
     order = scores.argsort()[::-1]
     boxes, landms, scores = boxes[order], landms[order], scores[order]
 
-    # NMS
     dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
     keep = py_cpu_nms(dets, nms_threshold)
     dets, landms = dets[keep, :], landms[keep]
 
     return dets, landms
-
-# ---------- Real-time ----------
-cap = cv2.VideoCapture(0) 
-
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    dets, landms = detect_faces(frame)
-
-    # bounding box
-    for b, l in zip(dets, landms):
-        if b[4] < vis_thres:
-            continue
-        text = f"{b[4]:.2f}"
-        x1, y1, x2, y2 = map(int, b[:4])
-        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cx, cy = x1, y1 + 12
-        cv2.putText(frame, text, (cx, cy), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0,255,0))
-        for i in range(5):
-            cv2.circle(frame, (int(l[2*i]), int(l[2*i+1])), 2, (0,0,255), -1)
-
-    cv2.imshow("RetinaFace Real-Time", frame)
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
