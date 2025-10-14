@@ -1,8 +1,10 @@
-pika
+pymilvus
+numpy
 opencv-python-headless
+# Embedding dependencies
 insightface
 torch
 torchvision
-numpy
 onnx
 onnxruntime
+tqdm

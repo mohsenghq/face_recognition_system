@@ -10,13 +10,6 @@ services:
     networks:
       - face_net
 
-  motion_detection:
-    build: ./modules/motion_detection
-    container_name: motion_detection
-    restart: always
-    networks:
-      - face_net
-
   detector:
     build: ./modules/detector
     container_name: detector
@@ -41,6 +34,18 @@ services:
     networks:
       - face_net
 
+  super_resolution:
+    build: ./modules/super_resolution
+    container_name: super_resolution
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    networks:
+      - face_net
+
   matching:
     build: ./modules/matching
     container_name: matching
@@ -50,6 +55,15 @@ services:
   tracker:
     build: ./modules/tracker
     container_name: tracker
+    networks:
+      - face_net
+
+  rabbitmq:
+    image: "rabbitmq:3.13-management"
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - face_net
 

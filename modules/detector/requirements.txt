@@ -1,1 +1,6 @@
-# requirements.txt 
+pika
+opencv-python-headless
+retina-face
+torch
+torchvision
+numpy

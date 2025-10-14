@@ -1,1 +1,7 @@
-# requirements.txt 
+fastapi
+uvicorn
+websockets
+pika
+python-multipart
+jinja2
+aiofiles

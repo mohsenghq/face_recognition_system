@@ -1,1 +1,8 @@
-# requirements.txt 
+pika
+numpy
+cython
+# YOLOX dependencies
+torch
+torchvision
+pycocotools
+yolox

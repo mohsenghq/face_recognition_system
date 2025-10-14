@@ -1,1 +1,3 @@
-# requirements.txt 
+pika
+opencv-python-headless
+numpy

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Monitor</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; }
+        h1 { text-align: center; color: #333; }
+        .container { display: flex; gap: 20px; max-width: 1600px; margin: auto; }
+        .main-feed { flex: 3; background-color: #000; position: relative; border: 1px solid #ccc; }
+        .main-feed img { width: 100%; height: auto; display: block; }
+        .results { flex: 1; overflow-y: auto; max-height: 80vh; background-color: #fff; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .person-card { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; padding: 10px; border-radius: 5px; border: 1px solid #eee; }
+        .person-card img { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; }
+        .person-info { font-size: 14px; }
+        .person-info strong { display: block; font-size: 16px; margin-bottom: 5px; }
+        .stats { text-align: center; margin-bottom: 20px; font-size: 18px; color: #555; }
+        .bbox { position: absolute; border: 2px solid red; box-sizing: border-box; }
+        .bbox-label { position: absolute; background-color: red; color: white; padding: 2px 5px; font-size: 12px; white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <h1>Real-Time Face Recognition Monitor</h1>
+    <div class="stats">
+        <span>FPS: <strong id="fps">--</strong></span> |
+        <span>Tracked Persons: <strong id="tracked-count">0</strong></span>
+    </div>
+    <div class="container">
+        <div class="main-feed" id="main-feed">
+            <img id="feed-image" src="" alt="Live Feed">
+        </div>
+        <div class="results" id="results-container">
+            <!-- Person cards will be inserted here -->
+        </div>
+    </div>
+
+    <script>
+        const feedImage = document.getElementById('feed-image');
+        const mainFeedDiv = document.getElementById('main-feed');
+        const resultsContainer = document.getElementById('results-container');
+        const fpsEl = document.getElementById('fps');
+        const trackedCountEl = document.getElementById('tracked-count');
+
+        let lastFrameTime = Date.now();
+        let frameCount = 0;
+
+        function connectWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connection established');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                // Update FPS
+                frameCount++;
+                const now = Date.now();
+                const delta = now - lastFrameTime;
+                if (delta >= 1000) {
+                    const fps = (frameCount / (delta / 1000)).toFixed(1);
+                    fpsEl.textContent = fps;
+                    frameCount = 0;
+                    lastFrameTime = now;
+                }
+
+                // Update main image feed
+                feedImage.src = `data:image/jpeg;base64,${data.original_image_b64}`;
+
+                // Clear previous bounding boxes
+                const existingBboxes = mainFeedDiv.querySelectorAll('.bbox, .bbox-label');
+                existingBboxes.forEach(el => el.remove());
+
+                // Update results and draw bounding boxes
+                resultsContainer.innerHTML = '';
+                trackedCountEl.textContent = data.tracked_persons.length;
+
+                const originalWidth = data.original_width;
+                const originalHeight = data.original_height;
+
+                const displayWidth = feedImage.offsetWidth;
+                const displayHeight = feedImage.offsetHeight;
+
+                const widthRatio = displayWidth / originalWidth;
+                const heightRatio = displayHeight / originalHeight;
+
+                data.tracked_persons.forEach(person => {
+                    const match = person.match;
+                    const bbox = match.bounding_box;
+                    const personId = match.match.person_id;
+                    const confidence = match.match.confidence.toFixed(2);
+                    const trackId = person.track_id;
+
+                    // Draw bounding box on main feed
+                    const box = document.createElement('div');
+                    box.className = 'bbox';
+                    box.style.left = `${bbox.x_min * widthRatio}px`;
+                    box.style.top = `${bbox.y_min * heightRatio}px`;
+                    box.style.width = `${(bbox.x_max - bbox.x_min) * widthRatio}px`;
+                    box.style.height = `${(bbox.y_max - bbox.y_min) * heightRatio}px`;
+
+                    const label = document.createElement('div');
+                    label.className = 'bbox-label';
+                    label.textContent = `${trackId}: ${personId} (${confidence})`;
+                    label.style.left = `${bbox.x_min * widthRatio}px`;
+                    label.style.top = `${bbox.y_min * heightRatio - 18}px`;
+
+                    mainFeedDiv.appendChild(box);
+                    mainFeedDiv.appendChild(label);
+
+                    // Create result card
+                    const card = document.createElement('div');
+                    card.className = 'person-card';
+                    card.innerHTML = `
+                        <img src="data:image/png;base64,${match.face_crop_b64}" alt="Face">
+                        <div class="person-info">
+                            <strong>Track ID: ${trackId}</strong>
+                            <span>Person: ${personId}</span><br>
+                            <span>Confidence: ${confidence}</span>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(card);
+                });
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket connection closed. Reconnecting in 3 seconds...');
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                ws.close();
+            };
+        }
+
+        window.onload = connectWebSocket;
+    </script>
+</body>
+</html>
