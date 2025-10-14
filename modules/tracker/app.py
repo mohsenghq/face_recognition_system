@@ -1,58 +1,34 @@
+# tracker.py
+import cv2
+from yolox.tracker.byte_tracker import BYTETracker, STrack
 import numpy as np
-from yolox.tracker.byte_tracker import BYTETracker
 
 class FaceTracker:
-    def __init__(self, track_thresh=0.5, match_thresh=0.8, track_buffer=30, frame_rate=30):
-        """
-        ByteTrack tracker initialization.
-        Parameters:
-            track_thresh: confidence threshold for detections to be considered
-            match_thresh: threshold for matching tracks
-            track_buffer: number of frames to keep lost tracks
-            frame_rate: video frame rate
-        """
-        self.tracker = BYTETracker(
-            track_thresh=track_thresh,
-            match_thresh=match_thresh,
-            track_buffer=track_buffer,
-            frame_rate=frame_rate
-        )
+    def __init__(self, fps=30, track_buffer=30):
+        self.tracker = BYTETracker(fps=fps, track_buffer=track_buffer)
 
-    def update(self, detections, img_info):
+    def update(self, detections, img_shape):
         """
-        Update the tracker with new detections from the detector.
-        Parameters:
-            detections: list or np.array of [x1, y1, x2, y2, score]
-            img_info: dict containing at least 'height' and 'width'
-        Returns:
-            List of dictionaries with each track info:
-            [
-                {
-                    "track_id": int,
-                    "bbox": [x1, y1, x2, y2]
-                },
-                ...
-            ]
+        detections: bbox و score from RetinaFace
+        img_shape: ابعاد تصویر (height, width)
         """
-        if len(detections) == 0:
-            dets = np.empty((0, 5))
-        else:
-            dets = np.array(detections)
+        height, width = img_shape[:2]
 
-        online_targets = self.tracker.update(
-            output_results=dets,
-            img_info=[img_info['height'], img_info['width']],
-            img_size=[img_info['height'], img_info['width']]
-        )
+        # change format
+        dets = []
+        for det in detections:
+            x1, y1, x2, y2 = det['bbox']
+            score = det.get('score', 1.0)
+            dets.append([x1, y1, x2, y2, score])
+        dets = np.array(dets, dtype=np.float32)
 
-        tracks = []
-        for t in online_targets:
-            tlwh = t.tlwh
-            track_id = t.track_id
-            x1, y1, w, h = tlwh
-            x2, y2 = x1 + w, y1 + h
-            tracks.append({
-                "track_id": track_id,
-                "bbox": [int(x1), int(y1), int(x2), int(y2)]
-            })
-        return tracks
+        # run tracker
+        tracks = self.tracker.update(dets, [height, width], (height, width))
+
+        # outputs
+        track_results = []
+        for track in tracks:
+            bbox = track.tlbr  # [x1, y1, x2, y2]
+            track_id = track.track_id
+            track_results.append({'track_id': track_id, 'bbox': bbox})
+        return track_results
