@@ -16,7 +16,7 @@ OUTPUT_QUEUE = "embeddings_queue"
 # --- Face Embedder Class ---
 class FaceEmbedder:
     """Wraps the InsightFace ArcFace model for face embedding generation."""
-    def __init__(self, model_name='arcface_r100_v1', device='cuda' if torch.cuda.is_available() else 'cpu'):
+    def __init__(self, model_name='buffalo_l', device='cuda' if torch.cuda.is_available() else 'cpu'):
         self.device = device
         ctx_id = 0 if self.device == 'cuda' else -1
         self.model = get_model(model_name)

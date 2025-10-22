@@ -4,16 +4,16 @@ FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # Set the working directory in the container
 WORKDIR /app
 
-# Ensure weights directory exists and download the GFPGAN model weights
-RUN mkdir -p /app/weights \
-    && wget -q https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth -P /app/weights
-
 # Install system dependencies (include wget for downloading model weights)
 RUN apt-get update && apt-get install -y \
     build-essential \
     wget \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Ensure weights directory exists and download the GFPGAN model weights
+RUN mkdir -p /app/weights \
+    && wget -q https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth -P /app/weights
 
 # Copy the requirements file into the container
 COPY requirements.txt .

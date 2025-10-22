@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
 import os
 from typing import List
+import time
 
 # --- Configuration ---
 RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST", "rabbitmq")

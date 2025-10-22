@@ -10,6 +10,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container
+COPY requirements_yolox.txt .
+
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements_yolox.txt
+
+# Copy the requirements file into the container
 COPY requirements.txt .
 
 # Install any needed packages specified in requirements.txt
