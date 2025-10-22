@@ -7,16 +7,20 @@ import base64
 import numpy as np
 import torch
 from insightface.model_zoo import get_model
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- Configuration ---
 RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST", "rabbitmq")
 INPUT_QUEUE = "upscaled_faces_queue"
 OUTPUT_QUEUE = "embeddings_queue"
+EMBEDDING_MODEL_NAME = os.environ.get("EMBEDDING_MODEL_NAME", "buffalo_l")
 
 # --- Face Embedder Class ---
 class FaceEmbedder:
     """Wraps the InsightFace ArcFace model for face embedding generation."""
-    def __init__(self, model_name='buffalo_l', device='cuda' if torch.cuda.is_available() else 'cpu'):
+    def __init__(self, model_name=EMBEDDING_MODEL_NAME, device='cuda' if torch.cuda.is_available() else 'cpu'):
         self.device = device
         ctx_id = 0 if self.device == 'cuda' else -1
         self.model = get_model(model_name)

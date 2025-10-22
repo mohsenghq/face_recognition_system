@@ -4,18 +4,21 @@ import os
 import json
 import numpy as np
 from yolox.tracker.byte_tracker import BYTETracker
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- Configuration ---
 RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST", "rabbitmq")
 INPUT_QUEUE = "matches_queue"
 OUTPUT_QUEUE = "tracked_results_queue"
-DEFAULT_FPS = 30
-DEFAULT_TRACK_BUFFER = 30
+TRACKER_FPS = int(os.environ.get("TRACKER_FPS", 30))
+TRACKER_BUFFER = int(os.environ.get("TRACKER_BUFFER", 30))
 
 # --- Tracker Wrapper ---
 class TrackerWrapper:
     """A wrapper for the BYTETracker algorithm."""
-    def __init__(self, fps=DEFAULT_FPS, track_buffer=DEFAULT_TRACK_BUFFER):
+    def __init__(self, fps=TRACKER_FPS, track_buffer=TRACKER_BUFFER):
         self.tracker = BYTETracker(fps=fps, track_buffer=track_buffer)
 
     def track_faces(self, match_results, image_shape):

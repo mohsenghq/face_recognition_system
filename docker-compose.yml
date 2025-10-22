@@ -14,6 +14,7 @@ services:
   detector:
     build: ./modules/detector
     container_name: detector
+    env_file: .env
     deploy:
       resources:
         reservations:
@@ -24,8 +25,12 @@ services:
       - face_net
 
   embedding:
-    build: ./modules/embedding
+    build:
+      context: ./modules/embedding
+      args:
+        - EMBEDDING_MODEL_NAME=${EMBEDDING_MODEL_NAME}
     container_name: embedding
+    env_file: .env
     deploy:
       resources:
         reservations:
@@ -38,6 +43,7 @@ services:
   super_resolution:
     build: ./modules/super_resolution
     container_name: super_resolution
+    env_file: .env
     deploy:
       resources:
         reservations:
@@ -50,14 +56,37 @@ services:
   matching:
     build: ./modules/matching
     container_name: matching
+    env_file: .env
     networks:
       - face_net
 
   tracker:
     build: ./modules/tracker
     container_name: tracker
+    env_file: .env
     networks:
       - face_net
+
+  face_enroller:
+    build:
+      context: ./modules/face_enroller
+      args:
+        - EMBEDDING_MODEL_NAME=${EMBEDDING_MODEL_NAME}
+    container_name: face_enroller
+    restart: always
+    env_file: .env
+    volumes:
+      - ./face_db:/app/face_db:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    networks:
+      - face_net
+    depends_on:
+      - vector_db
 
   rabbitmq:
     image: "rabbitmq:3.13-management"
@@ -75,15 +104,21 @@ services:
       - MILVUS_LOG_LEVEL=info
     ports:
       - "19530:19530"
+    volumes:
+      - ./milvus_data:/milvus/data
     networks:
       - face_net
 
   monitoring:
     build: ./modules/monitoring
     container_name: monitoring
+    env_file: .env
     networks:
       - face_net
 
 networks:
   face_net:
     driver: bridge
+
+volumes:
+  milvus_data:

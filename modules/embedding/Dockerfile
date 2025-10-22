@@ -15,6 +15,11 @@ COPY requirements.txt .
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Download the insightface model
+ARG EMBEDDING_MODEL_NAME=buffalo_l
+COPY download_model.py .
+RUN python download_model.py --model_name ${EMBEDDING_MODEL_NAME}
+
 # Copy the rest of the application's code into the container
 COPY . .
 

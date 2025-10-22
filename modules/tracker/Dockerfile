@@ -9,11 +9,10 @@ RUN apt-get update && apt-get install -y \
     build-essential git\
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file into the container
-COPY requirements_yolox.txt .
-
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements_yolox.txt
+# Clone YOLOX repository and install it
+RUN git clone https://github.com/Megvii-BaseDetection/YOLOX.git && \
+    cd YOLOX && \
+    pip install -e .
 
 # Copy the requirements file into the container
 COPY requirements.txt .

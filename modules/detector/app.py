@@ -7,18 +7,22 @@ import base64
 import numpy as np
 import torch
 from retinaface import RetinaFace
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- Configuration ---
 RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST", "rabbitmq")
 INPUT_QUEUE = "frames_queue"
 OUTPUT_QUEUE = "detections_queue"
+DETECTOR_QUALITY = os.environ.get("DETECTOR_QUALITY", "normal")
 
 # --- Face Detector Class ---
 class FaceDetector:
     """Wraps the RetinaFace model for face detection."""
     def __init__(self, device='cuda' if torch.cuda.is_available() else 'cpu'):
         self.device = device
-        self.detector = RetinaFace(quality='normal')
+        self.detector = RetinaFace(quality=DETECTOR_QUALITY)
         print(f"FaceDetector initialized on device: {self.device}")
 
     def detect_faces(self, image_bytes):

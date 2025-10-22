@@ -1,9 +1,9 @@
-pika
 opencv-python-headless
 insightface
 torch
 torchvision
 numpy
+pymilvus
+python-dotenv
 onnx
 onnxruntime
-python-dotenv

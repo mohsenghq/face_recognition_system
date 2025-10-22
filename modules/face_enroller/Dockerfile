@@ -7,7 +7,6 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
-    libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container
@@ -16,8 +15,16 @@ COPY requirements.txt .
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Download the insightface model
+ARG EMBEDDING_MODEL_NAME=buffalo_l
+COPY app.py .
+RUN python -c "from insightface.model_zoo import get_model; get_model('$EMBEDDING_MODEL_NAME')"
+
 # Copy the rest of the application's code into the container
 COPY . .
+
+# Create the face_db directory
+RUN mkdir -p /app/face_db
 
 # Define the command to run the application
 CMD ["python", "app.py"]

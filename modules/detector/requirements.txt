@@ -4,3 +4,4 @@ retina-face
 torch
 torchvision
 numpy
+python-dotenv
