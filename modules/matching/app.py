@@ -3,7 +3,7 @@ import numpy as np
 from typing import List, Optional
 
 class FaceMatcher:
-    def __init__(self, vector_db=None, threshold=0.6):
+    def __init__(self, vector_db=None, threshold=0.46):
         """
         Initialize face matcher with FAISS-based vector database
         

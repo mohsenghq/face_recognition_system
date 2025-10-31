@@ -5,6 +5,8 @@ import argparse
 from pathlib import Path
 import time
 import os
+os.environ['INSIGHTFACE_NO_WARNING'] = '1'
+os.environ['INSIGHTFACE_LOG_LEVEL'] = 'ERROR'
 
 # Add modules to path
 project_root = Path(__file__).resolve().parent
@@ -62,41 +64,43 @@ def detect_mode(source):
 
 def draw_adaptive_text(img, text, position, color, bg_color=None, thickness=2):
     """
-    Draw text with adaptive size based on image dimensions
-    
-    Args:
-        img: Input image
-        text: Text to draw
-        position: (x, y) position for text
-        color: Text color (B, G, R)
-        bg_color: Background color (B, G, R) or None for no background
-        thickness: Text thickness
-    
-    Returns:
-        Updated image
+    Draw text with adaptive size and safe positioning.
+    Ensures text stays inside the image.
     """
-    # Calculate adaptive font scale based on image size
     img_height, img_width = img.shape[:2]
-    font_scale = max(0.5, min(2.0, img_width / 800))  # Scale between 0.5 and 2.0
-    
-    # Calculate text size
+    font_scale = max(0.4, min(2.0, img_width / 800))  # Adaptive font scale
     font = cv2.FONT_HERSHEY_SIMPLEX
     text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
-    
+    text_w, text_h = text_size
     x, y = position
-    
-    # Draw background rectangle if specified
+    padding = 5
+
+    # Default bottom-left anchor correction
+    x = max(padding, min(x, img_width - text_w - padding))
+    y = max(text_h + padding, min(y, img_height - padding))
+
+    # Check if text would overflow bottom edge
+    if y + text_h + padding > img_height:
+        y = img_height - text_h - padding
+
+    # Check if text would overflow right edge
+    if x + text_w + padding > img_width:
+        x = img_width - text_w - padding
+
+    # Draw background if needed
     if bg_color is not None:
-        padding = 5
-        cv2.rectangle(img, 
-                    (x - padding, y - text_size[1] - padding), 
-                    (x + text_size[0] + padding, y + padding), 
-                    bg_color, -1)
-    
+        cv2.rectangle(
+            img,
+            (x - padding, y - text_h - padding),
+            (x + text_w + padding, y + padding // 2),
+            bg_color,
+            -1
+        )
+
     # Draw text
-    cv2.putText(img, text, (x, y), font, font_scale, color, thickness)
-    
+    cv2.putText(img, text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
     return img
+
 
 class FaceRecognitionSystem:
     def __init__(self, db_path: str = "face_database", enable_monitoring: bool = True):
@@ -173,7 +177,7 @@ class FaceRecognitionSystem:
         processed_img = img.copy()
         
         # Detect faces
-        _, detections = self.detector.detect_faces(image_path)
+        _, detections, _ = self.detector.detect_faces(image_path)
         
         if not detections:
             print("No faces detected in image")
@@ -237,7 +241,7 @@ class FaceRecognitionSystem:
         return processed_img
     
     def process_video(self, source: str = "camera", fps: int = 10, 
-                     show_video: bool = True, save_output: bool = False):
+                     show_video: bool = True, save_output: bool = True):
         """
         Process video stream for face recognition
         
@@ -320,7 +324,7 @@ def main(args):
                 source=source,
                 fps=args.fps,
                 show_video=True,
-                save_output=False
+                save_output=True
             )
             
         elif mode == "camera":
@@ -344,9 +348,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Face Recognition System")
-    parser.add_argument("--source", default='face_database\Mohsen\IMG_1243.jpg', 
+    parser.add_argument("--source", default='./test.mp4', 
                        help="Input source (camera index, video file path, or image file path). Auto-detects camera if not specified.")
-    parser.add_argument("--db-path", default="face_database", 
+    parser.add_argument("--db-path", default="face_database/lfw_home/lfw_funneled", 
                        help="Path to face database folder")
     parser.add_argument("--fps", type=int, default=10, 
                        help="Processing FPS for video")

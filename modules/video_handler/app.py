@@ -6,40 +6,41 @@ import time
 
 def draw_adaptive_text(img, text, position, color, bg_color=None, thickness=2):
     """
-    Draw text with adaptive size based on image dimensions
-    
-    Args:
-        img: Input image
-        text: Text to draw
-        position: (x, y) position for text
-        color: Text color (B, G, R)
-        bg_color: Background color (B, G, R) or None for no background
-        thickness: Text thickness
-    
-    Returns:
-        Updated image
+    Draw text with adaptive size and safe positioning.
+    Ensures text stays inside the image.
     """
-    # Calculate adaptive font scale based on image size
     img_height, img_width = img.shape[:2]
-    font_scale = max(0.5, min(2.0, img_width / 800))  # Scale between 0.5 and 2.0
-    
-    # Calculate text size
+    font_scale = max(0.4, min(2.0, img_width / 800))  # Adaptive font scale
     font = cv2.FONT_HERSHEY_SIMPLEX
     text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
-    
+    text_w, text_h = text_size
     x, y = position
-    
-    # Draw background rectangle if specified
+    padding = 5
+
+    # Default bottom-left anchor correction
+    x = max(padding, min(x, img_width - text_w - padding))
+    y = max(text_h + padding, min(y, img_height - padding))
+
+    # Check if text would overflow bottom edge
+    if y + text_h + padding > img_height:
+        y = img_height - text_h - padding
+
+    # Check if text would overflow right edge
+    if x + text_w + padding > img_width:
+        x = img_width - text_w - padding
+
+    # Draw background if needed
     if bg_color is not None:
-        padding = 5
-        cv2.rectangle(img, 
-                    (x - padding, y - text_size[1] - padding), 
-                    (x + text_size[0] + padding, y + padding), 
-                    bg_color, -1)
-    
+        cv2.rectangle(
+            img,
+            (x - padding, y - text_h - padding),
+            (x + text_w + padding, y + padding // 2),
+            bg_color,
+            -1
+        )
+
     # Draw text
-    cv2.putText(img, text, (x, y), font, font_scale, color, thickness)
-    
+    cv2.putText(img, text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
     return img
 
 class VideoHandler:
@@ -95,7 +96,7 @@ class VideoHandler:
                      matcher, 
                      on_frame_processed: Optional[Callable] = None,
                      show_video: bool = True,
-                     save_output: bool = False,
+                     save_output: bool = True,
                      output_path: str = "output_video.avi"):
         """
         Process video stream with face recognition
@@ -190,7 +191,7 @@ class VideoHandler:
             cv2.imwrite(temp_path, frame)
             
             # Detect faces
-            _, detections = detector.detect_faces(temp_path)
+            _, detections, _ = detector.detect_faces(temp_path)
             
             if detections:
                 # Extract face regions

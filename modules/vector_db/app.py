@@ -10,6 +10,9 @@ from datetime import datetime
 import hashlib
 import faiss
 
+from modules.detector.app import FaceDetector
+detector = FaceDetector()
+
 class FaceVectorDB:
     def __init__(self, db_path: str = "face_database"):
         """
@@ -269,11 +272,12 @@ class FaceVectorDB:
                         # Detect faces in the image
                         from modules.detector.app import FaceDetector
                         detector = FaceDetector()
-                        _, detections = detector.detect_faces(image_path)
+                        _, detections, _ = detector.detect_faces(image_path)
                         
                         if not detections:
                             print(f"No faces detected in: {image_path}")
                             continue
+                        
                         
                         # Get embeddings for all faces (take the largest face)
                         face_embeddings = embedder.get_embeddings([
@@ -345,8 +349,11 @@ class FaceVectorDB:
         
         results = []
         for similarity, idx in zip(similarities[0], indices[0]):
+            print(f'similarity for {idx} = {similarity} ? {threshold}')
             if idx != -1 and similarity >= threshold:  # -1 means no result
-                person_id = self.id_to_person.get(idx, "Unknown")
+                person_id = self.id_to_person[str(idx)]
+                print(f'found: {person_id}')
+                print('-'*50)
                 results.append((person_id, float(similarity)))
         
         return results
@@ -388,9 +395,7 @@ class FaceVectorDB:
                 if img is None:
                     continue
                 
-                from modules.detector.app import FaceDetector
-                detector = FaceDetector()
-                _, detections = detector.detect_faces(image_path)
+                _, detections, _ = detector.detect_faces(image_path)
                 
                 if detections:
                     face_embeddings = embedder.get_embeddings([
