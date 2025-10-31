@@ -209,12 +209,11 @@ class VideoHandler:
                 matches = matcher.match(embeddings)
                 
                 # Draw results
-                for i, (det, match) in enumerate(zip(detections, matches)):
+                for i, (det, (person_id, similarity)) in enumerate(zip(detections, matches)):
                     x1, y1, x2, y2 = map(int, det['bbox'])
-                    score = det.get('score', 0)
                     
                     # Choose color based on match
-                    if match != "Unknown":
+                    if person_id != "Unknown":
                         color = (0, 255, 0)  # Green for known person
                         bg_color = (0, 200, 0)  # Darker green background
                     else:
@@ -227,7 +226,7 @@ class VideoHandler:
                     cv2.rectangle(processed_frame, (x1, y1), (x2, y2), color, thickness)
                     
                     # Draw label with adaptive text
-                    label = f"{match} ({score:.2f})"
+                    label = f"{person_id} ({similarity:.2f})"
                     processed_frame = draw_adaptive_text(
                         processed_frame, 
                         label, 
