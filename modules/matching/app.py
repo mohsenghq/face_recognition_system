@@ -1,6 +1,6 @@
 # matcher.py
 import numpy as np
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 class FaceMatcher:
     def __init__(self, vector_db=None, threshold=0.46):
@@ -14,7 +14,7 @@ class FaceMatcher:
         self.vector_db = vector_db
         self.threshold = threshold
 
-    def match(self, embeddings: np.ndarray) -> List[str]:
+    def match(self, embeddings: np.ndarray) -> List[Tuple[str, float]]:
         """
         Match face embeddings against known faces using FAISS
         
@@ -22,10 +22,10 @@ class FaceMatcher:
             embeddings: Face embeddings to match
             
         Returns:
-            List of matched person IDs or "Unknown"
+            List of (person_id, similarity_score) tuples. "Unknown" if no match.
         """
         if self.vector_db is None:
-            return ["Unknown"] * len(embeddings)
+            return [("Unknown", 0.0)] * len(embeddings)
         
         results = []
         for embedding in embeddings:
@@ -37,11 +37,11 @@ class FaceMatcher:
             )
             
             if similar_faces:
-                # Return the most similar person
+                # Return the most similar person and their similarity
                 person_id, similarity = similar_faces[0]
-                results.append(person_id)
+                results.append((person_id, similarity))
             else:
-                results.append("Unknown")
+                results.append(("Unknown", 0.0))
         
         return results
     
